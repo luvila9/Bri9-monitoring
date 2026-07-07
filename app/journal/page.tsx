@@ -59,10 +59,11 @@ export default function JournalAI() {
   const fetchAiInsight = async (text: string) => {
       setIsAiThinking(true);
       try {
-         const res = await fetch('/api/gemini', {
+         // MENGHUBUNGI SERVER VERCEL ANDA
+         const res = await fetch('https://bri9-monitoring.vercel.app/api/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, userName })
+            body: JSON.stringify({ text: text, userName: userName })
          });
          const data = await res.json();
          

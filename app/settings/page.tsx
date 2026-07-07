@@ -1,15 +1,20 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
-// KITA HAPUS STORAGE DI SINI, HANYA PAKAI DB & AUTH
 import { db, auth } from '@/lib/firebase';
 import { collection, query, where, getDocs, onSnapshot, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 
+// IMPORT MESIN BAHASA KITA
+import { useLanguage } from '@/context/LanguageContext';
+
 export default function Settings() {
   const router = useRouter();
+  
+  // Panggil fungsi bahasa (t) dan status bahasa (lang, toggleLanguage)
+  const { t, lang, toggleLanguage } = useLanguage();
   
   const [userUid, setUserUid] = useState<string | null>(null);
   const [userName, setUserName] = useState('User');
@@ -31,7 +36,6 @@ export default function Settings() {
         setUserUid(user.uid);
         setUserEmail(user.email || '');
         
-        // BACA DATA LANGSUNG DARI FIREBASE AGAR SINKRON ANTAR DEVICE
         const unsubUser = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
            if (docSnap.exists()) {
               const data = docSnap.data();
@@ -71,7 +75,6 @@ export default function Settings() {
     }
   };
 
-  // UPLOAD NAMA KE FIREBASE DATABASE
   const handleEditName = async () => {
     const newName = window.prompt("Masukkan nama baru Anda:", userName);
     if (newName && newName.trim() !== "" && userUid) {
@@ -87,9 +90,6 @@ export default function Settings() {
     }
   };
 
-  // =================================================================
-  // TRIK JALAN TIKUS: UPLOAD FOTO KE DATABASE TANPA FIREBASE STORAGE
-  // =================================================================
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !userUid) return;
@@ -100,7 +100,6 @@ export default function Settings() {
     reader.onload = (event) => {
       const img = new Image();
       img.onload = async () => {
-        // SISTEM KOMPRESI OTOMATIS (Mengecilkan foto agar database tidak jebol)
         const canvas = document.createElement("canvas");
         const MAX_WIDTH = 400;
         const MAX_HEIGHT = 400;
@@ -118,11 +117,9 @@ export default function Settings() {
         const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, width, height);
 
-        // Ubah gambar menjadi kode teks (Base64) kualitas 70%
         const base64String = canvas.toDataURL("image/jpeg", 0.7);
 
         try {
-          // Simpan teks Base64 langsung ke Firestore Database!
           await setDoc(doc(db, "users", userUid), { profilePic: base64String }, { merge: true });
           
           setProfilePic(base64String);
@@ -219,13 +216,13 @@ export default function Settings() {
                <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mb-4 mx-auto">
                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                </div>
-               <h3 className="text-lg font-bold text-center text-white mb-2">Hapus Kendaraan?</h3>
+               <h3 className="text-lg font-bold text-center text-white mb-2">{t('delete_vehicle')}</h3>
                <p className="text-sm text-gray-400 text-center mb-6 leading-relaxed">
                  Anda akan menghapus <span className="text-white font-semibold">{confirmDialog.plateName}</span>. Riwayat servis dan isi bensin sebelumnya akan tetap aman di database.
                </p>
                <div className="flex gap-3">
-                 <button onClick={() => setConfirmDialog(null)} className="flex-1 py-3.5 rounded-xl bg-[#262629] text-white font-medium text-sm hover:bg-[#333336] transition-colors">Batal</button>
-                 <button onClick={executeDeleteVehicle} className="flex-1 py-3.5 rounded-xl bg-red-500 text-white font-medium text-sm hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20">Ya, Hapus</button>
+                 <button onClick={() => setConfirmDialog(null)} className="flex-1 py-3.5 rounded-xl bg-[#262629] text-white font-medium text-sm hover:bg-[#333336] transition-colors">{t('cancel')}</button>
+                 <button onClick={executeDeleteVehicle} className="flex-1 py-3.5 rounded-xl bg-red-500 text-white font-medium text-sm hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20">{t('yes_delete')}</button>
                </div>
             </div>
           </div>
@@ -234,7 +231,7 @@ export default function Settings() {
         {isManageVehiclesOpen && (
           <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col p-6 animate-in slide-in-from-bottom-full duration-300">
             <header className="flex justify-between items-center mt-8 mb-8 max-w-md mx-auto w-full">
-              <h2 className="text-2xl font-bold text-white tracking-tight">Kelola Kendaraan</h2>
+              <h2 className="text-2xl font-bold text-white tracking-tight">{t('manage_vehicle')}</h2>
               <button onClick={() => setIsManageVehiclesOpen(false)} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors">
                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
@@ -242,7 +239,7 @@ export default function Settings() {
             
             <div className="flex flex-col gap-4 overflow-y-auto max-w-md mx-auto w-full hide-scrollbar pb-20">
               {vehicles.length === 0 ? (
-                <div className="text-center py-10"><p className="text-gray-500 text-sm">Belum ada kendaraan terdaftar.</p></div>
+                <div className="text-center py-10"><p className="text-gray-500 text-sm">{t('no_vehicle')}</p></div>
               ) : (
                 vehicles.map((v) => (
                   <div key={v.id} className="bg-[#151515] border border-white/5 rounded-3xl p-5 flex justify-between items-center shadow-lg">
@@ -262,7 +259,7 @@ export default function Settings() {
 
         <header className="flex justify-between items-center px-6 pt-10 mb-8">
           <div className="w-6"></div>
-          <h1 className="text-[17px] font-semibold tracking-wide">Settings</h1>
+          <h1 className="text-[17px] font-semibold tracking-wide">{t('settings')}</h1>
           <div className="w-6"></div>
         </header>
 
@@ -286,18 +283,18 @@ export default function Settings() {
 
         <div className="px-6 flex flex-col gap-6">
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 ml-2">Data & Laporan</h3>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 ml-2">{t('data_report')}</h3>
             <div className="bg-[#151515] rounded-[1.5rem] border border-white/5 flex flex-col overflow-hidden">
               <div className="flex justify-between items-center p-5 border-b border-white/5 cursor-pointer hover:bg-white/5" onClick={handleExportData}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg></div>
-                  <span className="text-sm font-medium text-gray-200">Export Laporan (.xlsx)</span>
+                  <span className="text-sm font-medium text-gray-200">{t('export_excel')}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center p-5 border-b border-white/5 cursor-pointer hover:bg-white/5" onClick={() => setIsManageVehiclesOpen(true)}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg></div>
-                  <span className="text-sm font-medium text-gray-200">Kelola Kendaraan</span>
+                  <span className="text-sm font-medium text-gray-200">{t('manage_vehicle')}</span>
                 </div>
                 <span className="text-gray-500 text-sm">&gt;</span>
               </div>
@@ -305,19 +302,29 @@ export default function Settings() {
           </div>
 
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 ml-2">Preferensi</h3>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 ml-2">{t('preferences')}</h3>
             <div className="bg-[#151515] rounded-[1.5rem] border border-white/5 flex flex-col overflow-hidden">
+              
+              {/* TOMBOL GANTI BAHASA BARU */}
+              <div className="flex justify-between items-center p-5 border-b border-white/5 cursor-pointer hover:bg-white/5" onClick={toggleLanguage}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg></div>
+                  <span className="text-sm font-medium text-gray-200">{t('language')}</span>
+                </div>
+                <span className="text-gray-400 text-xs font-bold bg-[#1c1c1e] px-3 py-1 rounded-full border border-gray-700 uppercase">{lang}</span>
+              </div>
+
               <div className="flex justify-between items-center p-5 border-b border-white/5 cursor-pointer hover:bg-white/5" onClick={() => { setNotif(!notif); localStorage.setItem('bri9_notif', String(!notif)); }}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg></div>
-                  <span className="text-sm font-medium text-gray-200">Push Notifications</span>
+                  <span className="text-sm font-medium text-gray-200">{t('push_notif')}</span>
                 </div>
                 <button className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${notif ? 'bg-blue-500' : 'bg-gray-700'}`}><div className={`w-4 h-4 bg-white rounded-full transition-transform ${notif ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
               </div>
               <div className="flex justify-between items-center p-5 cursor-pointer hover:bg-white/5" onClick={() => showHud("Link ganti password dikirim ke email!", "success")}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg></div>
-                  <span className="text-sm font-medium text-gray-200">Change Password</span>
+                  <span className="text-sm font-medium text-gray-200">{t('change_pass')}</span>
                 </div>
                 <span className="text-gray-500 text-sm">&gt;</span>
               </div>
@@ -326,10 +333,10 @@ export default function Settings() {
 
           <div className="mt-4 flex flex-col gap-3">
             <button onClick={() => showHud("Silakan hubungi Support untuk mereset akun.", "error")} className="w-full py-4 rounded-xl bg-[#1c1c1e] text-gray-400 font-semibold text-sm border border-white/5 hover:bg-[#252528] transition-colors">
-              Reset All Data
+              {t('reset_data')}
             </button>
             <button onClick={handleLogout} className="w-full py-4 rounded-xl bg-red-500/10 text-red-500 font-semibold text-sm border border-red-500/20 hover:bg-red-500/20 transition-colors">
-              Sign Out
+              {t('sign_out')}
             </button>
           </div>
         </div>

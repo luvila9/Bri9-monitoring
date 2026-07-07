@@ -1,11 +1,23 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// Variabel Konfigurasi Pintu Akses (CORS) untuk APK Android
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// WAJIB: Menangkap sinyal "Preflight" dari HP Android
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(req: Request) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-      return NextResponse.json({ message: "Jangan lupa isi jurnalmu hari ini ya, Chief! 🤖" });
+      return NextResponse.json({ message: "Jangan lupa isi jurnalmu hari ini ya, Chief! 🤖" }, { headers: corsHeaders });
   }
 
   try {
@@ -31,9 +43,9 @@ export async function POST(req: Request) {
     // Hapus tanda bintang markdown jika ada
     aiText = aiText.replace(/\*/g, '');
 
-    return NextResponse.json({ message: aiText });
+    return NextResponse.json({ message: aiText }, { headers: corsHeaders });
 
   } catch (error) {
-    return NextResponse.json({ message: "Sistem mendeteksi kamu belum mengisi jurnal hari ini. Yuk isi sekarang! 🤖" });
+    return NextResponse.json({ message: "Sistem mendeteksi kamu belum mengisi jurnal hari ini. Yuk isi sekarang! 🤖" }, { headers: corsHeaders });
   }
 }

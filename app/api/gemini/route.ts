@@ -1,11 +1,23 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// Variabel Konfigurasi Pintu Akses (CORS) untuk APK Android
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// WAJIB: Menangkap sinyal "Preflight" dari HP Android
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(req: Request) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-      return NextResponse.json({ insight: "🚨 ERROR SISTEM: File .env.local tidak terbaca!" });
+      return NextResponse.json({ insight: "🚨 ERROR SISTEM: File .env.local atau Vercel Environment tidak terbaca!" }, { headers: corsHeaders });
   }
 
   try {
@@ -16,7 +28,7 @@ export async function POST(req: Request) {
     const listData = await listRes.json();
 
     if (listData.error) {
-        return NextResponse.json({ insight: `🚨 API KEY DITOLAK:\n${listData.error.message}` });
+        return NextResponse.json({ insight: `🚨 API KEY DITOLAK:\n${listData.error.message}` }, { headers: corsHeaders });
     }
 
     // 2. FILTER: Cari AI yang bisa merangkai kata (generateContent) dan bernama "gemini"
@@ -25,7 +37,7 @@ export async function POST(req: Request) {
         .map((m: any) => m.name.replace('models/', ''));
 
     if (validModels.length === 0) {
-        return NextResponse.json({ insight: "🚨 ERROR GOOGLE: Kunci valid, tapi Google belum memberikan akses model Gemini apa pun ke akun ini." });
+        return NextResponse.json({ insight: "🚨 ERROR GOOGLE: Kunci valid, tapi Google belum memberikan akses model Gemini apa pun ke akun ini." }, { headers: corsHeaders });
     }
 
     // 3. AUTO-SELECT: Gunakan AI pertama yang berhasil ditangkap oleh radar
@@ -48,11 +60,11 @@ export async function POST(req: Request) {
     const result = await model.generateContent(prompt);
     const aiText = result.response.text();
 
-    // Memberikan balasan AI sekaligus membocorkan nama model yang berhasil dipakai
-    return NextResponse.json({ insight: `${aiText}\n\n*(Radar Info: Menggunakan otak ${activeModelName})*` });
+    // Memberikan balasan AI sekaligus membocorkan nama model yang berhasil dipakai (DILENGKAPI CORS)
+    return NextResponse.json({ insight: `${aiText}\n\n*(Radar Info: Menggunakan otak ${activeModelName})*` }, { headers: corsHeaders });
 
   } catch (error: any) {
     console.error("AI FATAL ERROR:", error);
-    return NextResponse.json({ insight: `🚨 FATAL ERROR SAAT GENERATE:\n${error.message}` });
+    return NextResponse.json({ insight: `🚨 FATAL ERROR SAAT GENERATE:\n${error.message}` }, { headers: corsHeaders });
   }
 }
