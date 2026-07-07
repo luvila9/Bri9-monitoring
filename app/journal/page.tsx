@@ -60,7 +60,7 @@ export default function JournalAI() {
       setIsAiThinking(true);
       try {
          // MENGHUBUNGI SERVER VERCEL ANDA
-         const res = await fetch('https://bri9-monitoring.vercel.app/api/Gemini', {
+         const res = await fetch('https://bri9-monitoring.vercel.app/api/ai-chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: text, userName: userName })
