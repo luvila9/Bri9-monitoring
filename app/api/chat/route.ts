@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Variabel Konfigurasi Pintu Akses (CORS) untuk APK Android
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// WAJIB: Menangkap sinyal "Preflight" dari HP Android
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders });
 }
@@ -17,35 +15,12 @@ export async function POST(req: Request) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-      return NextResponse.json({ insight: "🚨 ERROR SISTEM: File .env.local atau Vercel Environment tidak terbaca!" }, { headers: corsHeaders });
+      return NextResponse.json({ insight: "🚨 Waduh Chief, API Key Gemini kita belum terpasang di Vercel. Coba cek lagi pengaturannya!" }, { headers: corsHeaders });
   }
 
   try {
     const { text, userName } = await req.json();
-
-    // 1. TAKTIK RADAR: Meminta daftar AI yang aktif langsung dari server Google hari ini
-    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    const listData = await listRes.json();
-
-    if (listData.error) {
-        return NextResponse.json({ insight: `🚨 API KEY DITOLAK:\n${listData.error.message}` }, { headers: corsHeaders });
-    }
-
-    // 2. FILTER: Cari AI yang bisa merangkai kata (generateContent) dan bernama "gemini"
-    const validModels = listData.models
-        .filter((m: any) => m.supportedGenerationMethods.includes('generateContent') && m.name.includes('gemini'))
-        .map((m: any) => m.name.replace('models/', ''));
-
-    if (validModels.length === 0) {
-        return NextResponse.json({ insight: "🚨 ERROR GOOGLE: Kunci valid, tapi Google belum memberikan akses model Gemini apa pun ke akun ini." }, { headers: corsHeaders });
-    }
-
-    // 3. AUTO-SELECT: Gunakan AI pertama yang berhasil ditangkap oleh radar
-    const activeModelName = validModels[0]; 
-    
-    // Mulai panggil AI yang sudah terkonfirmasi ada
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: activeModelName });
 
     const prompt = `Kamu adalah 'Bri9 Life Analyzer', asisten AI personal (Life Coach & Tech Advisor) untuk seorang programmer jenius bernama ${userName}. ${userName} adalah Full-Stack Developer & IoT/AI Enthusiast yang sering ngoding Next.js, CodeIgniter, dan YOLOv5.
     
@@ -57,14 +32,54 @@ export async function POST(req: Request) {
     
     Curhatan / Jurnal ${userName} hari ini: "${text}"`;
 
-    const result = await model.generateContent(prompt);
-    const aiText = result.response.text();
+    const fallbackModels = [
+        "antigravity",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+        "gemini-pro"
+    ];
 
-    // Memberikan balasan AI sekaligus membocorkan nama model yang berhasil dipakai (DILENGKAPI CORS)
-    return NextResponse.json({ insight: `${aiText}\n\n*(Radar Info: Menggunakan otak ${activeModelName})*` }, { headers: corsHeaders });
+    let finalAiText = "";
+    let successfulModel = "";
+    let lastErrorMsg = "";
+
+    for (const modelName of fallbackModels) {
+        try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(prompt);
+            
+            finalAiText = result.response.text();
+            successfulModel = modelName;
+            break; 
+        } catch (err: any) {
+            console.warn(`[AUTO-FALLBACK] Model ${modelName} gagal: ${err.message}`);
+            lastErrorMsg = err.message;
+        }
+    }
+
+    // --- SISTEM PENDETEKSI ERROR CERDAS (MENGUBAH ERROR JELEK JADI ASIK) ---
+    if (!successfulModel) {
+        let friendlyMessage = "🚨 Waduh Chief, koneksi ke otak pusat AI sedang kacau. Coba lagi nanti ya!";
+        
+        // Deteksi Limit Habis (429)
+        if (lastErrorMsg.includes("429") || lastErrorMsg.includes("Quota") || lastErrorMsg.includes("Too Many")) {
+            friendlyMessage = "💤 Limit Harian Tercapai!\n\nMaaf Chief Ubaidullah, semua kuota otak AI kita untuk hari ini sudah habis terkuras. Sistem akan reset kembali besok. Saatnya tutup laptop dan istirahat!";
+        } 
+        // Deteksi Server Down (503)
+        else if (lastErrorMsg.includes("503") || lastErrorMsg.includes("Unavailable") || lastErrorMsg.includes("overloaded")) {
+            friendlyMessage = "🔥 Server AI Overload!\n\nServer pusat Google sedang sibuk berat. Beri saya waktu beberapa menit untuk menembus jalurnya lagi ya, Chief.";
+        }
+
+        return NextResponse.json({ insight: friendlyMessage }, { headers: corsHeaders });
+    }
+
+    return NextResponse.json({ 
+        insight: `${finalAiText}\n\n*(Radar Info: Menggunakan otak ${successfulModel})*` 
+    }, { headers: corsHeaders });
 
   } catch (error: any) {
+    // Menangkap error di luar prediksi (Server Vercel dsb)
     console.error("AI FATAL ERROR:", error);
-    return NextResponse.json({ insight: `🚨 FATAL ERROR SAAT GENERATE:\n${error.message}` }, { headers: corsHeaders });
+    return NextResponse.json({ insight: "🚨 Sistem mengalami gangguan internal, Chief. Tim teknisi sedang menyelidikinya." }, { headers: corsHeaders });
   }
 }
