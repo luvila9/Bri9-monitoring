@@ -36,7 +36,7 @@ export default function AiReminder() {
             if (!hasJournalToday) {
                setShowNotif(true);
                try {
-                  const res = await fetch('https://bri9-monitoring.vercel.app/api/notif', {
+                  const res = await fetch('/api/notif', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userName })
