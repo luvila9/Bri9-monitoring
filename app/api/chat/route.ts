@@ -68,3 +68,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ insight: `🚨 FATAL ERROR SAAT GENERATE:\n${error.message}` }, { headers: corsHeaders });
   }
 }
+
+// Fungsi untuk mengetes apakah jalur API berhasil dibaca oleh Vercel
+export async function GET() {
+  return NextResponse.json({ 
+    status: "API CHAT AKTIF 🚀", 
+    message: "Jalur ke server Vercel berhasil terbuka!" 
+  }, { headers: corsHeaders });
+}
