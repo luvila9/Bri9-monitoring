@@ -33,10 +33,8 @@ export async function POST(req: Request) {
     Curhatan / Jurnal ${userName} hari ini: "${text}"`;
 
     const fallbackModels = [
-        "antigravity",
         "gemini-1.5-pro",
         "gemini-1.5-flash",
-        "gemini-pro"
     ];
 
     let finalAiText = "";
