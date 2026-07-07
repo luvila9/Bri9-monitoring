@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Bri9</string>
+    <string name="title_activity_main">Bri9</string>
+    <string name="package_name">com.ubay.Bri9</string>
+    <string name="custom_url_scheme">com.ubay.Bri9</string>
+</resources>
