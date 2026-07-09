@@ -1,51 +1,45 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 
-// Variabel Konfigurasi Pintu Akses (CORS) untuk APK Android
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// WAJIB: Menangkap sinyal "Preflight" dari HP Android
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders });
 }
 
 export async function POST(req: Request) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
 
+  // Fallback bawaan jika API Key mati
   if (!apiKey) {
       return NextResponse.json({ message: "Jangan lupa isi jurnalmu hari ini ya, Chief! 🤖" }, { headers: corsHeaders });
   }
 
   try {
-    const { userName } = await req.json();
+    const { userName = "Ubaidullah" } = await req.json();
+    const groq = new Groq({ apiKey });
 
-    // 1. Taktik Radar (Sama seperti sebelumnya)
-    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    const listData = await listRes.json();
-    const validModels = listData.models
-        .filter((m: any) => m.supportedGenerationMethods.includes('generateContent') && m.name.includes('gemini'))
-        .map((m: any) => m.name.replace('models/', ''));
+    const prompt = `Buatkan 1 kalimat notifikasi pendek (maksimal 15 kata) bergaya Jarvis dari Iron Man untuk mengingatkan ${userName} agar mengisi jurnal harian coding-nya hari ini. Singkat, asik, dan gunakan 1 emoji.`;
 
-    const activeModelName = validModels.length > 0 ? validModels[0] : 'gemini-1.5-flash';
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: activeModelName });
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama3-8b-8192", // Model ringan dan super cepat
+      temperature: 0.8,
+      max_tokens: 50,
+    });
 
-    // 2. PROMPT KHUSUS NOTIFIKASI
-    const prompt = `Buatkan 1 kalimat notifikasi pendek (maksimal 15 kata) bergaya Jarvis dari Iron Man yang asik dan sedikit menyindir. Tujuannya untuk mengingatkan programmer bernama ${userName} bahwa dia belum mencatat keseharian / curhat coding sama sekali hari ini. Gunakan 1 emoji saja di akhir.`;
-
-    const result = await model.generateContent(prompt);
-    let aiText = result.response.text().trim();
-    
-    // Hapus tanda bintang markdown jika ada
-    aiText = aiText.replace(/\*/g, '');
+    // Membersihkan tanda kutip yang sering dibawa oleh AI
+    const aiText = chatCompletion.choices[0]?.message?.content?.replace(/["']/g, "").trim() || "Waktunya update jurnal, Chief! 🚀";
 
     return NextResponse.json({ message: aiText }, { headers: corsHeaders });
 
   } catch (error) {
-    return NextResponse.json({ message: "Sistem mendeteksi kamu belum mengisi jurnal hari ini. Yuk isi sekarang! 🤖" }, { headers: corsHeaders });
+    console.error("GROQ NOTIF ERROR:", error);
+    // Jika server Groq down, kembalikan pesan statis ini agar aplikasi tidak crash
+    return NextResponse.json({ message: "Jangan lupa isi jurnalmu hari ini ya, Chief! 🤖" }, { headers: corsHeaders });
   }
 }
