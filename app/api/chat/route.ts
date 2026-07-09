@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         { role: "user", content: `Curhatan / Jurnal ${userName} hari ini: "${text}"` }
       ],
       // LLaMA 3 8B sangat ringan, cepat, dan kuota gratisnya besar
-      model: "llama3-8b-8192", 
+      model: "llama-3.1-8b-instant", 
       temperature: 0.7,
       max_tokens: 512,
     });
